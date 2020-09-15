@@ -19,13 +19,14 @@
 
 ## TL;DR
 
-Docker-Compose 快速启动命令：
+本镜像为 Hadoop 的基础镜像，具体使用需要参照相关 Node 的使用说明。相应 Node 主要为：
 
-```shell
-$ curl -sSL https://raw.githubusercontent.com/colovu/docker-hadoop/master/docker-compose.yml > docker-compose.yml
-
-$ docker-compose up -d
-```
+- colovu/hadoop-datanode
+- colovu/hadoop-namenode
+- colovu/hadoop-journalnode
+- colovu/hadoop-historyserver
+- colovu/hadoop-nodemanager
+- colovu/hadoop-resourcemanager
 
 
 
