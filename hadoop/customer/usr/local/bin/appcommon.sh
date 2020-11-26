@@ -41,6 +41,9 @@ app_env() {
 		export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-${APP_CONF_DIR}}
 		export HADOOP_LOG_DIR=${HADOOP_LOG_DIR:-${APP_LOG_DIR}}
 
+        export HADOOP_ACTIVED_NAMENODE=${HADOOP_ACTIVED_NAMENODE:-}
+        export HADOOP_CURRENT_NAMENODE=${HADOOP_CURRENT_NAMENODE:-`hostname -f`}
+
 		export CORE_CONF_hadoop_tmp_dir=${CORE_CONF_hadoop_tmp_dir:-${APP_DATA_DIR}/hadoop/tmp}
 
 		export HDFS_CONF_dfs_namenode_name_dir=${HDFS_CONF_dfs_namenode_name_dir:-${APP_DATA_DIR}/dfs/namenode}
