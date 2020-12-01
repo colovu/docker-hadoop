@@ -345,7 +345,7 @@ app_wait_service() {
     LOG_I "[0/${max_try}] check for ${service}:${port}..."
 
     set +e
-    nc -z ${service} ${port}
+    nc -z -w 2 ${service} ${port}
     result=$?
 
     until [ $result -eq 0 ]; do
@@ -359,7 +359,7 @@ app_wait_service() {
       let "i++"
       sleep ${retry_seconds}
 
-      nc -z ${service} ${port}
+      nc -z -w 2 ${service} ${port}
       result=$?
     done
 
