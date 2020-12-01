@@ -286,8 +286,11 @@ hadoop_multihome_network_conf() {
     hadoop_hdfs_set dfs.namenode.servicerpc-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.http-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.https-bind-host 0.0.0.0
-    hadoop_hdfs_set dfs.client.use.datanode.hostname true
-    hadoop_hdfs_set dfs.datanode.use.datanode.hostname true
+    hadoop_hdfs_set dfs.journalnode.rpc-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.http-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.https-bind-host 0.0.0.0
+#    hadoop_hdfs_set dfs.client.use.datanode.hostname true
+#    hadoop_hdfs_set dfs.datanode.use.datanode.hostname true
 
     # YARN
     hadoop_yarn_set yarn.resourcemanager.bind-host 0.0.0.0
