@@ -41,6 +41,9 @@ app_env() {
 		export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-${APP_CONF_DIR}}
 		export HADOOP_LOG_DIR=${HADOOP_LOG_DIR:-${APP_LOG_DIR}}
 
+        export HADOOP_ACTIVED_NAMENODE=${HADOOP_ACTIVED_NAMENODE:-}
+        export HADOOP_CURRENT_NAMENODE=${HADOOP_CURRENT_NAMENODE:-`hostname -f`}
+
 		export CORE_CONF_hadoop_tmp_dir=${CORE_CONF_hadoop_tmp_dir:-${APP_DATA_DIR}/hadoop/tmp}
 
 		export HDFS_CONF_dfs_namenode_name_dir=${HDFS_CONF_dfs_namenode_name_dir:-${APP_DATA_DIR}/dfs/namenode}
@@ -283,8 +286,11 @@ hadoop_multihome_network_conf() {
     hadoop_hdfs_set dfs.namenode.servicerpc-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.http-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.https-bind-host 0.0.0.0
-    hadoop_hdfs_set dfs.client.use.datanode.hostname true
-    hadoop_hdfs_set dfs.datanode.use.datanode.hostname true
+    hadoop_hdfs_set dfs.journalnode.rpc-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.http-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.https-bind-host 0.0.0.0
+#    hadoop_hdfs_set dfs.client.use.datanode.hostname true
+#    hadoop_hdfs_set dfs.datanode.use.datanode.hostname true
 
     # YARN
     hadoop_yarn_set yarn.resourcemanager.bind-host 0.0.0.0
@@ -342,7 +348,7 @@ app_wait_service() {
     LOG_I "[0/${max_try}] check for ${service}:${port}..."
 
     set +e
-    nc -z ${service} ${port}
+    nc -z -w 2 ${service} ${port}
     result=$?
 
     until [ $result -eq 0 ]; do
@@ -356,7 +362,7 @@ app_wait_service() {
       let "i++"
       sleep ${retry_seconds}
 
-      nc -z ${service} ${port}
+      nc -z -w 2 ${service} ${port}
       result=$?
     done
 
