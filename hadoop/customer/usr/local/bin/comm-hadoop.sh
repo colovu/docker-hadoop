@@ -36,15 +36,15 @@ hadoop_configure_from_environment() {
     LOG_D "  File: ${path}"
     # Map environment variables to config properties
     #for var in `printenv | grep ${envPrefix} | "${!${envPrefix}_@}"`; do
-    #    LOG_D "  Process: ${var}"
-    #    key="$(echo "${var}" | sed -e 's/^${envPrefix}_//g' -e 's/___/-/g' -e 's/__/_/g' -e 's/_/\./g')"
-    #    value="${!var}"
+    #    LOG_D "  Process: ${!var}"
+    #    key="$(echo "${!var}" | sed -e 's/^${envPrefix}_//g' -e 's/___/-/g' -e 's/__/_/g' -e 's/_/\./g')"
+    #    value="${var}"
     #    hadoop_common_xml_set "${path}"  "${key}" "${value}"
     #done
     #for var in $(printenv | grep ${envPrefix}); do
-    #    LOG_D "  Process: ${var}"
-    #    key="$(echo "${var}" | sed -e 's/^${envPrefix}_//g' -e 's/___/-/g' -e 's/__/_/g' -e 's/_/\./g' )"
-    #    value="${!var}"
+    #    LOG_D "  Process: ${!var}"
+    #    key="$(echo "${!var}" | sed -e 's/^${envPrefix}_//g' -e 's/___/-/g' -e 's/__/_/g' -e 's/_/\./g' )"
+    #    value="${var}"
     #    hadoop_common_xml_set "${path}" "${key}" "${value}"
     #done
     for c in `printenv | perl -sne 'print "$1 " if m/^${envPrefix}_(.+?)=.*/' -- -envPrefix=${envPrefix}`; do 

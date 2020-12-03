@@ -35,6 +35,7 @@ export APP_CERT_DIR="/srv/cert/${APP_NAME}"
 # 应用配置参数
 export USER=hadoop
 export MULTIHOMED_NETWORK=${MULTIHOMED_NETWORK:-1}
+export HADOOP_HOME=${APP_HOME_DIR}
 
 export HADOOP_ACTIVED_NAMENODE=${HADOOP_ACTIVED_NAMENODE:-}
 export HADOOP_CURRENT_NAMENODE=${HADOOP_CURRENT_NAMENODE:-`hostname -f`}
@@ -52,8 +53,6 @@ export MAPRED_CONF_mapreduce_application_classpath=${MAPRED_CONF_mapreduce_appli
 export YARN_CONF_yarn_application_classpath=${YARN_CONF_yarn_application_classpath:-${HADOOP_YARN_HOME}/share/hadoop/yarn/*:${HADOOP_YARN_HOME}/share/hadoop/yarn/lib/*}
 
 # 内部变量
-export HADOOP_HOME=${APP_HOME_DIR}
-
 export HADOOP_MAPRED_HOME=${HADOOP_HOME}
 export HADOOP_COMMON_HOME=${HADOOP_HOME}
 export HADOOP_HDFS_HOME=${HADOOP_HOME}
