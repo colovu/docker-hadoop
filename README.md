@@ -114,13 +114,10 @@ Hadoop 应用的参数通过设置**环境变量**的方式设置。格式为 **
   * dfs.namenode.servicerpc-bind-host = 0.0.0.0
   * dfs.namenode.http-bind-host = 0.0.0.0
   * dfs.namenode.https-bind-host = 0.0.0.0
-  * dfs.client.use.datanode.hostname = true
-  * dfs.datanode.use.datanode.hostname = true
 
   配置文件 `/srv/conf/hadoop/yarn-site.xml`:
 
   * yarn.resourcemanager.bind-host = 0.0.0.0
-  * yarn.nodemanager.bind-host = 0.0.0.0
   * yarn.nodemanager.bind-host = 0.0.0.0
 
   配置文件 `/srv/conf/hadoop/mapred-site.xml`:

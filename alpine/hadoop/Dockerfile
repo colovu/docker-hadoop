@@ -1,4 +1,4 @@
-# Ver: 1.2 by Endial Fang (endial@126.com)
+# Ver: 1.3 by Endial Fang (endial@126.com)
 #
 
 # 预处理 =========================================================================
@@ -13,9 +13,8 @@ ARG local_url=""
 ENV APP_NAME=hadoop \
 	APP_VERSION=3.2.1
 
-WORKDIR /usr/local
-
-RUN select_source ${apt_source};
+# 选择软件包源服务器，并安装依赖软件包
+#RUN select_source ${apt_source};
 #RUN install_pkg xz-utils
 
 # 下载并解压软件包
@@ -77,16 +76,10 @@ ENV APP_NAME=hadoop \
 	APP_VERSION=3.2.1
 
 ENV	APP_HOME_DIR=/usr/local/${APP_NAME} \
-	APP_DEF_DIR=/etc/${APP_NAME} \
-	APP_CONF_DIR=/srv/conf/${APP_NAME} \
-	APP_DATA_DIR=/srv/data/${APP_NAME} \
-	APP_DATA_LOG_DIR=/srv/datalog/${APP_NAME} \
-	APP_CACHE_DIR=/var/cache/${APP_NAME} \
-	APP_RUN_DIR=/var/run/${APP_NAME} \
-	APP_LOG_DIR=/var/log/${APP_NAME} \
-	APP_CERT_DIR=/srv/cert/${APP_NAME}
+	APP_DEF_DIR=/etc/${APP_NAME}
 
-ENV 	PATH="${APP_HOME_DIR}/bin:${PATH}"
+ENV PATH="${APP_HOME_DIR}/sbin:${APP_HOME_DIR}/bin:${PATH}" \
+	LD_LIBRARY_PATH="${APP_HOME_DIR}/lib"
 
 LABEL \
 	"Version"="v${APP_VERSION}" \
@@ -94,12 +87,12 @@ LABEL \
 	"Dockerfile"="https://github.com/colovu/docker-${APP_NAME}" \
 	"Vendor"="Endial Fang (endial@126.com)"
 
-COPY customer /
-
-# 以包管理方式安装软件包(Optional)
+# 选择软件包源服务器
 RUN select_source ${apt_source}
 RUN install_pkg net-tools netcat-openbsd
 
+# 拷贝用户脚本资源，并执行相关脚本，准备环境资源
+COPY customer /
 RUN create_user && prepare_env
 
 # 从预处理过程中拷贝软件包(Optional)

@@ -14,76 +14,6 @@
 
 # 函数列表
 
-# 加载应用使用的环境变量初始值，该函数在相关脚本中以 eval 方式调用
-# 全局变量:
-#   ENV_* : 容器使用的全局变量
-#   APP_* : 在镜像创建时定义的全局变量
-#   *_* : 应用配置文件使用的全局变量，变量名根据配置项定义
-# 返回值:
-#   可以被 'eval' 使用的序列化输出
-app_env() {
-    cat <<-'EOF'
-		# Common Settings
-		export ENV_DEBUG=${ENV_DEBUG:-false}
-		export USER=hadoop
-
-		# Paths configuration
-		export HADOOP_HOME=${APP_HOME_DIR}
-		export HADOOP_MAPRED_HOME=${HADOOP_HOME}
-		export HADOOP_COMMON_HOME=${HADOOP_HOME}
-		export HADOOP_HDFS_HOME=${HADOOP_HOME}
-		export HADOOP_YARN_HOME=${HADOOP_HOME}
-		export YARN_HOME=${HADOOP_HOME}
-		export HADOOP_COMMON_LIB_NATIVE_DIR=${HADOOP_HOME}/lib/native
-		export HADOOP_LIBEXEC_DIR=${HADOOP_HOME}/libexec
-		export HADOOP_INSTALL=${HADOOP_HOME}
-
-		export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-${APP_CONF_DIR}}
-		export HADOOP_LOG_DIR=${HADOOP_LOG_DIR:-${APP_LOG_DIR}}
-
-		export CORE_CONF_hadoop_tmp_dir=${CORE_CONF_hadoop_tmp_dir:-${APP_DATA_DIR}/hadoop/tmp}
-
-		export HDFS_CONF_dfs_namenode_name_dir=${HDFS_CONF_dfs_namenode_name_dir:-${APP_DATA_DIR}/dfs/namenode}
-		export HDFS_CONF_dfs_datanode_data_dir=${HDFS_CONF_dfs_datanode_data_dir:-${APP_DATA_DIR}/dfs/datanode}
-		export HDFS_CONF_dfs_journalnode_edits_dir=${HDFS_CONF_dfs_journalnode_edits_dir:-${APP_DATA_DIR}/dfs/journal}
-		export YARN_CONF_yarn_timeline___service_leveldb___timeline___store_path=${YARN_CONF_yarn_timeline___service_leveldb___timeline___store_path:-${APP_DATA_DIR}/yarn/timeline}
-		export MAPRED_CONF_mapreduce_jobhistory_done___dir=${MAPRED_CONF_mapreduce_jobhistory_done___dir:-${APP_DATA_DIR}/mapreduce/done}
-		export MAPRED_CONF_mapreduce_jobhistory_intermediate___done___dir=${MAPRED_CONF_mapreduce_jobhistory_intermediate___done___dir:-${APP_DATA_DIR}/mapreduce/tmp}
-
-		export HADOOP_TMP_DIR=${CORE_CONF_hadoop_tmp_dir:-${APP_DATA_DIR}/hadoop/tmp}
-		export HDFS_NAMENODE_DATA_DIR=${HDFS_CONF_dfs_namenode_name_dir:-${APP_DATA_DIR}/dfs/namenode}
-		export HDFS_DATANODE_DATA_DIR=${HDFS_CONF_dfs_datanode_data_dir:-${APP_DATA_DIR}/dfs/datanode}
-		export HDFS_JOURNALNODE_DATA_DIR=${HDFS_CONF_dfs_journalnode_edits_dir:-${APP_DATA_DIR}/dfs/journal}
-		export YARN_TIMELINE_DATA_DIR=${YARN_CONF_yarn_timeline___service_leveldb___timeline___store_path:-${APP_DATA_DIR}/yarn/timeline}
-		export MAPRED_JOBHISTORY_DONE_DATA_DIR=${MAPRED_CONF_mapreduce_jobhistory_done___dir:-${APP_DATA_DIR}/mapreduce/done}
-		export MAPRED_JOBHISTORY_TMP_DATA_DIR=${MAPRED_CONF_mapreduce_jobhistory_intermediate___done___dir:-${APP_DATA_DIR}/mapreduce/tmp}
-
-		export HADOOP_OPTS="-Djava.library.path=${HADOOP_HOME}/lib/native" 
-
-		# Application settings
-		export CORE_CONF_fs_defaultFS=${CORE_CONF_fs_defaultFS:-hdfs://`hostname -f`:9000}
-		export MAPRED_CONF_mapreduce_application_classpath=${MAPRED_CONF_mapreduce_application_classpath:-${HADOOP_MAPRED_HOME}/share/hadoop/mapreduce/*:${HADOOP_MAPRED_HOME}/share/hadoop/mapreduce/lib/*}
-		export YARN_CONF_yarn_application_classpath=${YARN_CONF_yarn_application_classpath:-${HADOOP_YARN_HOME}/share/hadoop/yarn/*:${HADOOP_YARN_HOME}/share/hadoop/yarn/lib/*}
-
-		export MULTIHOMED_NETWORK=${MULTIHOMED_NETWORK:-1}
-
-		# Application Cluster configuration
-
-		# JVM settings
-
-		# Authentication
-
-EOF
-
-    # 利用 *_FILE 设置密码，不在配置命令中设置密码，增强安全性
-#    if [[ -f "${ZOO_CLIENT_PASSWORD_FILE:-}" ]]; then
-#        cat <<"EOF"
-#export ZOO_CLIENT_PASSWORD="$(< "${ZOO_CLIENT_PASSWORD_FILE}")"
-#EOF
-#    fi
-
-}
-
 # 使用环境变量中以 "<PREFIX>" 开头的的全局变量更新指定配置文件中对应项（以"."分隔）
 # 如果需要全部转换为小写，可使用命令： tr '[:upper:]' '[:lower:]'
 # 全局变量:
@@ -91,6 +21,7 @@ EOF
 #       替换规则（变量中字符  ==>  替换后全局变量中字符）：
 #           - "." ==> "_"
 #           - "_" ==> "__"
+#           - "-" ==> "___"
 #           
 # 变量：
 #   $1 - 配置文件
@@ -171,12 +102,17 @@ hadoop_common_xml_set() {
     local escapedEntry=$(echo $entry | sed 's/\//\\\//g')
 
     LOG_D "  Property: ${name} = ${value}"
-    sed -i "/<\/configuration>/ s/.*/${escapedEntry}\n&/" ${path}
+
+    if grep -q "^[#\\s]*<property><name>${name}</name>.*" "$file"; then
+        # 更新已存在的配置项
+        replace_in_file "${path}" "^[#\\s]*<property><name>${name}</name>.*" "${escapedEntry}" false
+    else
+        # 增加一个新的配置项；如果在其他位置有类似操作，需要注意换行
+        sed -i "/<\/configuration>/ s/.*/${escapedEntry}\n&/" "${path}"
+    fi
 }
 
 # 更新 core-site.xml 配置文件中指定变量值
-# 全局变量:
-#   APP_CONF_DIR
 # 变量:
 #   $1 - 变量
 #   $2 - 值（列表）
@@ -185,8 +121,6 @@ hadoop_core_set() {
 }
 
 # 更新 hdfs-site.xml 配置文件中指定变量值
-# 全局变量:
-#   APP_CONF_DIR
 # 变量:
 #   $1 - 变量
 #   $2 - 值（列表）
@@ -195,8 +129,6 @@ hadoop_hdfs_set() {
 }
 
 # 更新 yarn-site.xml 配置文件中指定变量值
-# 全局变量:
-#   APP_CONF_DIR
 # 变量:
 #   $1 - 变量
 #   $2 - 值（列表）
@@ -205,8 +137,6 @@ hadoop_yarn_set() {
 }
 
 # 更新 mapred-site.xml 配置文件中指定变量值
-# 全局变量:
-#   APP_CONF_DIR
 # 变量:
 #   $1 - 变量
 #   $2 - 值（列表）
@@ -215,8 +145,6 @@ hadoop_mapred_set() {
 }
 
 # 更新 log4j.properties 配置文件中指定变量值
-# 全局变量:
-#   APP_CONF_DIR
 # 变量:
 #   $1 - 变量
 #   $2 - 值（列表）
@@ -224,29 +152,34 @@ hadoop_log4j_set() {
     hadoop_common_conf_set "${APP_CONF_DIR}/log4j.properties" "$@"
 }
 
+# 使用环境变量中配置，更新配置文件
+hadoop_update_conf() {
+    LOG_I "Update configure files..."
+
+    LOG_D "Update configure file for core"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/core-site.xml CORE_CONF
+
+    LOG_D "Update configure file for hdfs"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/hdfs-site.xml HDFS_CONF
+
+    LOG_D "Update configure file for yarn"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/yarn-site.xml YARN_CONF
+
+    LOG_D "Update configure file for httpfs"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/httpfs-site.xml HTTPFS_CONF
+
+    LOG_D "Update configure file for kms"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/kms-site.xml KMS_CONF
+
+    LOG_D "Update configure file for mapred"
+    hadoop_configure_from_environment ${APP_CONF_DIR}/mapred-site.xml MAPRED_CONF
+}
+
 # 生成默认配置文件
-# 全局变量:
-#   *_*
 hadoop_generate_conf() {
     LOG_I "Generate Base configure files..."
 
-    LOG_D "Generate configure file for core"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/core-site.xml CORE_CONF
-
-    LOG_D "Generate configure file for hdfs"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/hdfs-site.xml HDFS_CONF
-
-    LOG_D "Generate configure file for yarn"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/yarn-site.xml YARN_CONF
-
-    LOG_D "Generate configure file for httpfs"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/httpfs-site.xml HTTPFS_CONF
-
-    LOG_D "Generate configure file for kms"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/kms-site.xml KMS_CONF
-
-    LOG_D "Generate configure file for mapred"
-    hadoop_configure_from_environment ${APP_CONF_DIR}/mapred-site.xml MAPRED_CONF
+    hadoop_update_conf
 
     hadoop_log4j_set "hadoop.log.dir" "${APP_LOG_DIR}"
 }
@@ -281,23 +214,23 @@ hadoop_multihome_network_conf() {
     # HDFS
     hadoop_hdfs_set dfs.namenode.rpc-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.servicerpc-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.namenode.lifeline.rpc-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.http-bind-host 0.0.0.0
     hadoop_hdfs_set dfs.namenode.https-bind-host 0.0.0.0
-    hadoop_hdfs_set dfs.client.use.datanode.hostname true
-    hadoop_hdfs_set dfs.datanode.use.datanode.hostname true
+    hadoop_hdfs_set dfs.journalnode.rpc-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.http-bind-host 0.0.0.0
+    hadoop_hdfs_set dfs.journalnode.https-bind-host 0.0.0.0
 
     # YARN
     hadoop_yarn_set yarn.resourcemanager.bind-host 0.0.0.0
     hadoop_yarn_set yarn.nodemanager.bind-host 0.0.0.0
+    hadoop_yarn_set yarn.web-proxy.bind-host 0.0.0.0
     hadoop_yarn_set yarn.timeline-service.bind-host 0.0.0.0
-
-    # MAPRED
-    hadoop_mapred_set yarn.nodemanager.bind-host 0.0.0.0
+    hadoop_yarn_set yarn.router.bind-host 0.0.0.0
+    hadoop_yarn_set yarn.timeline-service.reader.bind-host 0.0.0.0
 }
 
 # 设置环境变量 JVMFLAGS
-# 全局变量:
-#   JVMFLAGS
 # 参数:
 #   $1 - value
 hadoop_export_jvmflags() {
@@ -308,14 +241,12 @@ hadoop_export_jvmflags() {
 }
 
 # 配置 HEAP 大小
-# 全局变量:
-#   JVMFLAGS
 # 参数:
 #   $1 - HEAP 大小
 hadoop_configure_heap_size() {
     local -r heap_size="${1:?heap_size is required}"
 
-    if [[ "$JVMFLAGS" =~ -Xm[xs].*-Xm[xs] ]]; then
+    if [[ "${JVMFLAGS}" =~ -Xm[xs].*-Xm[xs] ]]; then
         LOG_D "Using specified values (JVMFLAGS=${JVMFLAGS})"
     else
         LOG_D "Setting '-Xmx${heap_size}m -Xms${heap_size}m' heap options..."
@@ -323,10 +254,39 @@ hadoop_configure_heap_size() {
     fi
 }
 
+# 检测用户参数信息是否满足条件; 针对部分权限过于开放情况，打印提示信息
+hadoop_verify_minimum_env() {
+    local error_code=0
+
+    LOG_D "Validating settings in HADOOP_* env vars..."
+
+    print_validation_error() {
+        LOG_E "$1"
+        error_code=1
+    }
+
+    # 检测认证设置。如果不允许匿名登录，检测登录用户名及密码是否设置
+#    if is_boolean_yes "$ALLOW_ANONYMOUS_LOGIN"; then
+#        LOG_W "You have set the environment variable ALLOW_ANONYMOUS_LOGIN=${ALLOW_ANONYMOUS_LOGIN}. For safety reasons, do not use this flag in a production environment."
+#    elif ! is_boolean_yes "$ZOO_ENABLE_AUTH"; then
+#        print_validation_error "The ZOO_ENABLE_AUTH environment variable does not configure authentication. Set the environment variable ALLOW_ANONYMOUS_LOGIN=yes to allow unauthenticated users to connect to ZooKeeper."
+#    fi
+
+    # TODO: 其他参数检测
+
+    [[ "$error_code" -eq 0 ]] || exit "$error_code"
+}
+
+# 更改默认监听地址为 "*" 或 "0.0.0.0"，以对容器外提供服务；默认配置文件应当为仅监听 localhost(127.0.0.1)
+hadoop_enable_remote_connections() {
+    LOG_D "Modify default config to enable all IP access"
+	
+}
+
 # 检测依赖的服务端口是否就绪；该脚本依赖系统工具 'netcat'
 # 参数:
 #   $1 - host:port
-app_wait_service() {
+hadoop_wait_service() {
     local serviceport=${1:?Missing server info}
     local service=${serviceport%%:*}
     local port=${serviceport#*:}
@@ -335,14 +295,14 @@ app_wait_service() {
     let i=1
 
     if [[ -z "$(which nc)" ]]; then
-        LOG_E "Nedd nc installed before, command: apt-get install netcat."
+        LOG_E "Nedd nc installed before, command: \"apt-get install netcat\"."
         exit 1
     fi
 
     LOG_I "[0/${max_try}] check for ${service}:${port}..."
 
     set +e
-    nc -z ${service} ${port}
+    nc -z -w 2 ${service} ${port}
     result=$?
 
     until [ $result -eq 0 ]; do
@@ -356,7 +316,7 @@ app_wait_service() {
       let "i++"
       sleep ${retry_seconds}
 
-      nc -z ${service} ${port}
+      nc -z -w 2 ${service} ${port}
       result=$?
     done
 
@@ -364,39 +324,14 @@ app_wait_service() {
     LOG_I "[$i/${max_try}] ${service}:${port} is available."
 }
 
-# 检测用户参数信息是否满足条件
-# 针对部分权限过于开放情况，可打印提示信息
-app_verify_minimum_env() {
-    local error_code=0
-
-    LOG_D "Validating settings in HADOOP_* env vars..."
-
-    print_validation_error() {
-        LOG_E "$1"
-        error_code=1
-    }
-
-    # TODO: 其他参数检测
-
-    [[ "$error_code" -eq 0 ]] || exit "$error_code"
-}
-
-# 更改默认监听地址为 "*" 或 "0.0.0.0"，以对容器外提供服务；默认配置文件应当为仅监听 localhost(127.0.0.1)
-app_enable_remote_connections() {
-    LOG_D "Modify default config to enable all IP access"
-	
-}
-
 # 清理初始化应用时生成的临时文件
-app_clean_tmp_file() {
+hadoop_clean_tmp_file() {
     LOG_D "Clean ${APP_NAME} tmp files for init..."
 
 }
 
 # 在重新启动容器时，删除标志文件及必须删除的临时文件 (容器重新启动)
-# 全局变量:
-#   APP_*
-app_clean_from_restart() {
+hadoop_clean_from_restart() {
     LOG_D "Clean ${APP_NAME} tmp files for restart..."
     local -r -a files=(
 
@@ -412,8 +347,8 @@ app_clean_from_restart() {
 
 # 应用默认初始化操作
 # 执行完毕后，生成文件 ${APP_CONF_DIR}/.app_init_flag 及 ${APP_DATA_DIR}/.data_init_flag 文件
-app_default_init() {
-	app_clean_from_restart
+hadoop_default_init() {
+	hadoop_clean_from_restart
     LOG_D "Check init status of ${APP_NAME}..."
 
     # 检测配置文件是否存在
@@ -429,10 +364,13 @@ app_default_init() {
 
         [ -n "${GANGLIA_HOST:-}" ] && hadoop_ganglia_host_conf
 
-        touch ${APP_CONF_DIR}/.app_init_flag
-        echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> ${APP_CONF_DIR}/.app_init_flag
+        touch "${APP_CONF_DIR}/.app_init_flag"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> "${APP_CONF_DIR}/.app_init_flag"
     else
         LOG_I "User injected custom configuration detected!"
+
+        LOG_D "Update configure files from environment..."
+        hadoop_update_conf
     fi
 
     if [[ ! -f "${APP_DATA_DIR}/.data_init_flag" ]]; then
@@ -448,14 +386,14 @@ app_default_init() {
 
     # 获取依赖外部服务信息，去除配置信息中可能存在的双引号'"'，并进行服务状态检测
     for i in `echo ${SERVICE_PRECONDITION:-} | sed -e 's/^\"//' -e 's/\"$//'`; do
-        app_wait_service "${i}"
+        hadoop_wait_service "${i}"
     done
 }
 
 # 用户自定义的前置初始化操作，依次执行目录 preinitdb.d 中的初始化脚本
 # 执行完毕后，生成文件 ${APP_DATA_DIR}/.custom_preinit_flag
-app_custom_preinit() {
-    LOG_D "Check custom pre-init status of ${APP_NAME}..."
+hadoop_custom_preinit() {
+    LOG_I "Check custom pre-init status of ${APP_NAME}..."
 
     # 检测用户配置文件目录是否存在 preinitdb.d 文件夹，如果存在，尝试执行目录中的初始化脚本
     if [ -d "/srv/conf/${APP_NAME}/preinitdb.d" ]; then
@@ -467,8 +405,8 @@ app_custom_preinit() {
             # 检索所有可执行脚本，排序后执行
             find "/srv/conf/${APP_NAME}/preinitdb.d/" -type f -regex ".*\.\(sh\)" | sort | process_init_files
 
-            touch ${APP_DATA_DIR}/.custom_preinit_flag
-            echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> ${APP_DATA_DIR}/.custom_preinit_flag
+            touch "${APP_DATA_DIR}/.custom_preinit_flag"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> "${APP_DATA_DIR}/.custom_preinit_flag"
             LOG_I "Custom preinit for ${APP_NAME} complete."
         else
             LOG_I "Custom preinit for ${APP_NAME} already done before, skipping initialization."
@@ -477,14 +415,14 @@ app_custom_preinit() {
 
     # 检测依赖的服务是否就绪
     #for i in ${SERVICE_PRECONDITION[@]}; do
-    #    app_wait_service "${i}"
+    #    hadoop_wait_service "${i}"
     #done
 }
 
 # 用户自定义的应用初始化操作，依次执行目录initdb.d中的初始化脚本
 # 执行完毕后，生成文件 ${APP_DATA_DIR}/.custom_init_flag
-app_custom_init() {
-    LOG_D "Check custom init status of ${APP_NAME}..."
+hadoop_custom_init() {
+    LOG_I "Check custom initdb status of ${APP_NAME}..."
 
     # 检测用户配置文件目录是否存在 initdb.d 文件夹，如果存在，尝试执行目录中的初始化脚本
     if [ -d "/srv/conf/${APP_NAME}/initdb.d" ]; then
@@ -503,12 +441,21 @@ app_custom_init() {
                             LOG_D "Sourcing $f"; . "$f"
                         fi
                         ;;
-                    *)        LOG_D "Ignoring $f" ;;
+                    *.sql)    
+                        LOG_D "Executing $f"; 
+                        postgresql_execute "${PG_DATABASE}" "${PG_INITSCRIPTS_USERNAME}" "${PG_INITSCRIPTS_PASSWORD}" < "$f"
+                        ;;
+                    *.sql.gz) 
+                        LOG_D "Executing $f"; 
+                        gunzip -c "$f" | postgresql_execute "${PG_DATABASE}" "${PG_INITSCRIPTS_USERNAME}" "${PG_INITSCRIPTS_PASSWORD}"
+                        ;;
+                    *)        
+                        LOG_D "Ignoring $f" ;;
                 esac
             done
 
-            touch ${APP_DATA_DIR}/.custom_init_flag
-    		echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> ${APP_DATA_DIR}/.custom_init_flag
+            touch "${APP_DATA_DIR}/.custom_init_flag"
+    		echo "$(date '+%Y-%m-%d %H:%M:%S') : Init success." >> "${APP_DATA_DIR}/.custom_init_flag"
     		LOG_I "Custom init for ${APP_NAME} complete."
     	else
     		LOG_I "Custom init for ${APP_NAME} already done before, skipping initialization."
@@ -516,9 +463,9 @@ app_custom_init() {
     fi
 
     # 删除第一次运行生成的临时文件
-    app_clean_tmp_file
+    hadoop_clean_tmp_file
 
 	# 绑定所有 IP ，启用远程访问
-    app_enable_remote_connections
+    hadoop_enable_remote_connections
 }
 
