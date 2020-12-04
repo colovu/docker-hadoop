@@ -49,8 +49,8 @@ export YARN_CONF_yarn_timeline___service_leveldb___timeline___store_path=${YARN_
 export MAPRED_CONF_mapreduce_jobhistory_done___dir=${MAPRED_CONF_mapreduce_jobhistory_done___dir:-${APP_DATA_DIR}/mapreduce/done}
 export MAPRED_CONF_mapreduce_jobhistory_intermediate___done___dir=${MAPRED_CONF_mapreduce_jobhistory_intermediate___done___dir:-${APP_DATA_DIR}/mapreduce/tmp}
 
-export MAPRED_CONF_mapreduce_application_classpath=${MAPRED_CONF_mapreduce_application_classpath:-${HADOOP_MAPRED_HOME}/share/hadoop/mapreduce/*:${HADOOP_MAPRED_HOME}/share/hadoop/mapreduce/lib/*}
-export YARN_CONF_yarn_application_classpath=${YARN_CONF_yarn_application_classpath:-${HADOOP_YARN_HOME}/share/hadoop/yarn/*:${HADOOP_YARN_HOME}/share/hadoop/yarn/lib/*}
+export MAPRED_CONF_mapreduce_application_classpath=${MAPRED_CONF_mapreduce_application_classpath:-${HADOOP_HOME}/share/hadoop/mapreduce/*:${HADOOP_HOME}/share/hadoop/mapreduce/lib/*}
+export YARN_CONF_yarn_application_classpath=${YARN_CONF_yarn_application_classpath:-${HADOOP_HOME}/share/hadoop/yarn/*:${HADOOP_HOME}/share/hadoop/yarn/lib/*}
 
 # 内部变量
 export HADOOP_MAPRED_HOME=${HADOOP_HOME}
