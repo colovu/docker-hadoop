@@ -99,16 +99,23 @@ hadoop_common_xml_set() {
     local value="${3:?missing value}"
 
     local entry="<property><name>${name}</name><value>${value}</value></property>"
-    local escapedEntry=$(echo $entry | sed 's/\//\\\//g')
+    # 将参数中的 '/' 替换为 '\/', '*' 替换为 '\*' 以使得参数可以放置在后续的 sed 命令中
+    local escapedEntry=$(echo $entry | sed 's/\//\\\//g' | sed 's/\*/\\\*/g')
 
     LOG_D "  Property: ${name} = ${value}"
 
-    if grep -q "^[#\\s]*<property><name>${name}</name>.*" "$file"; then
+    if grep -q "^[#\\s]*${escapedEntry}.*" "$path"; then
+        # 跳过已存在且参数值相同的配置项
+        LOG_D "    Skip property: ${name}"
+        :;
+    elif grep -q "^[#\\s]*<property><name>${name}<\/name>.*" "$path"; then
         # 更新已存在的配置项
-        replace_in_file "${path}" "^[#\\s]*<property><name>${name}</name>.*" "${escapedEntry}" false
+        LOG_D "    Update property: ${name}"
+        replace_in_file "${path}" "^[#\\s]*<property><name>${name}<\/name>.*" "${escapedEntry}" false
     else
         # 增加一个新的配置项；如果在其他位置有类似操作，需要注意换行
         sed -i "/<\/configuration>/ s/.*/${escapedEntry}\n&/" "${path}"
+        LOG_D "    Add new property: ${name}"
     fi
 }
 
