@@ -112,7 +112,6 @@ hadoop_common_xml_set() {
         # 更新已存在的配置项
         LOG_D "    Update property: ${name}"
         replace_in_file "${path}" "^[#\\s]*<property><name>${name}<\/name>.*" "${escapedEntry}" false
-        #sed -i "/<property><name>${name}<\/name>.*/${escapedEntry}/" "${path}"
     else
         # 增加一个新的配置项；如果在其他位置有类似操作，需要注意换行
         sed -i "/<\/configuration>/ s/.*/${escapedEntry}\n&/" "${path}"
